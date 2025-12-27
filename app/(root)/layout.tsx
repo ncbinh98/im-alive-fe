@@ -1,7 +1,9 @@
+'use client';
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import { Roboto } from "next/font/google";
 import { ThemeProvider } from "@mui/material/styles";
 import theme from "../theme";
+import '@/configs/axios.config'
 
 const roboto = Roboto({
   weight: ["300", "400", "500", "700"],
