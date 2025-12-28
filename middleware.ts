@@ -1,0 +1,25 @@
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+
+export default withAuth(
+  function middleware(req) {
+    // Custom middleware logic if needed
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ token }) => !!token,
+    },
+    pages: {
+      signIn: "/login",
+    },
+  }
+);
+
+export const config = {
+  matcher: [
+    "/me/:path*",
+    "/dashboard/:path*",
+    // Add other protected routes
+  ],
+};
