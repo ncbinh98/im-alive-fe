@@ -1,21 +1,10 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
-import {
-  LOCAL_STORAGE_ACCESS_TOKEN_KEY,
-  LOCAL_STORAGE_REFRESH_ACCESS_TOKEN_KEY,
-} from "./axios.constants";
-
+// lib/axios-instance.ts
+import axios from "axios";
+import { getSession } from "next-auth/react";
+// Always use absolute URL or properly configured base URL
 const baseURL = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3003";
 
-// Type-safe token getter
-const getToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY);
-  }
-  return null;
-};
-
-// Create axios instance
-const axiosInstance: AxiosInstance = axios.create({
+const axiosInstance = axios.create({
   baseURL,
   timeout: 10000,
   headers: {
@@ -23,92 +12,22 @@ const axiosInstance: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor with proper typing
-axiosInstance.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = getToken();
+// Add NextAuth token interceptor
+axiosInstance.interceptors.request.use(async (config) => {
+  // Only run on client side
+  if (typeof window !== "undefined") {
+    try {
+      const session = await getSession();
 
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-      _skipRefresh?: boolean;
-    };
-
-    // Define paths that should skip refresh logic
-    const skipRefreshPaths = [
-      "/auth/login",
-      "/auth/register",
-      "/auth/refresh", // Important: Don't refresh the refresh call itself!
-      "/public/",
-    ];
-
-    // Get the request URL
-    const requestUrl = originalRequest.url || "";
-
-    // Check if this path should skip refresh
-    const shouldSkipRefresh = skipRefreshPaths.some((path) => requestUrl.includes(path));
-
-    if (shouldSkipRefresh) {
-      return Promise.reject(error);
-    }
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        // Safely get refresh token
-        const refreshToken =
-          typeof window !== "undefined"
-            ? localStorage.getItem(LOCAL_STORAGE_REFRESH_ACCESS_TOKEN_KEY)
-            : null;
-
-        if (!refreshToken) {
-          //   throw new Error("No refresh token");
-          //handle later
-        }
-
-        const response = await axios.post(`${baseURL}/auth/refresh`, {
-          refreshToken,
-        });
-
-        const { accessToken } = response.data as { accessToken: string };
-
-        // Safely store new token
-        if (typeof window !== "undefined") {
-          localStorage.setItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY, accessToken);
-        }
-
-        // Retry original request
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        }
-
-        return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        // Clear tokens safely
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY);
-          localStorage.removeItem(LOCAL_STORAGE_REFRESH_ACCESS_TOKEN_KEY);
-        }
-        return Promise.reject(refreshError);
+      if (session?.accessToken) {
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
       }
+    } catch (error) {
+      console.error("Failed to get session:", error);
     }
-
-    return Promise.reject(error);
   }
-);
+
+  return config;
+});
 
 export default axiosInstance;
