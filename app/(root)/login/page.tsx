@@ -14,11 +14,14 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
+  useTheme,
+  alpha,
 } from "@mui/material";
 import { Email, Lock, Visibility, VisibilityOff } from "@mui/icons-material";
 
 export default function LoginPage() {
   const router = useRouter();
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -57,13 +60,32 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+        background:
+          theme.palette.mode === "dark"
+            ? `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${alpha(
+                theme.palette.primary.dark,
+                0.3
+              )} 100%)`
+            : "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
         p: 2,
       }}
     >
       <Container maxWidth="xs">
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h4" sx={{ mb: 1, textAlign: "center" }}>
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: 3,
+            background:
+              theme.palette.mode === "dark"
+                ? alpha(theme.palette.background.paper, 0.9)
+                : theme.palette.background.paper,
+            boxShadow:
+              theme.palette.mode === "dark"
+                ? `0 8px 32px ${alpha(theme.palette.common.black, 0.3)}`
+                : `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+          }}
+        >
+          <Typography variant="h4" sx={{ mb: 1, textAlign: "center", fontWeight: 600 }}>
             Welcome
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4, textAlign: "center" }}>
@@ -71,7 +93,15 @@ export default function LoginPage() {
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 2,
+                background: alpha(theme.palette.error.main, 0.1),
+                color: theme.palette.error.main,
+                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+              }}
+            >
               {error}
             </Alert>
           )}
@@ -88,9 +118,24 @@ export default function LoginPage() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email fontSize="small" />
+                    <Email
+                      fontSize="small"
+                      sx={{
+                        color:
+                          theme.palette.mode === "dark"
+                            ? theme.palette.primary.light
+                            : theme.palette.primary.main,
+                      }}
+                    />
                   </InputAdornment>
                 ),
+              }}
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: theme.palette.mode === "dark" ? theme.palette.text.secondary : "inherit",
+                  },
+                },
               }}
             />
 
@@ -105,7 +150,15 @@ export default function LoginPage() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Lock fontSize="small" />
+                    <Lock
+                      fontSize="small"
+                      sx={{
+                        color:
+                          theme.palette.mode === "dark"
+                            ? theme.palette.primary.light
+                            : theme.palette.primary.main,
+                      }}
+                    />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -114,11 +167,24 @@ export default function LoginPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                       size="small"
+                      sx={{
+                        color:
+                          theme.palette.mode === "dark"
+                            ? theme.palette.grey[400]
+                            : theme.palette.grey[600],
+                      }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
                 ),
+              }}
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: theme.palette.mode === "dark" ? theme.palette.text.secondary : "inherit",
+                  },
+                },
               }}
             />
 
@@ -131,10 +197,26 @@ export default function LoginPage() {
                 py: 1.5,
                 borderRadius: 2,
                 fontWeight: 600,
+                fontSize: "1rem",
+                background:
+                  theme.palette.mode === "dark"
+                    ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`
+                    : undefined,
+                "&:hover": {
+                  background:
+                    theme.palette.mode === "dark"
+                      ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
+                      : undefined,
+                },
               }}
             >
               {loading ? (
-                <CircularProgress size={24} color="inherit" />
+                <CircularProgress
+                  size={24}
+                  sx={{
+                    color: theme.palette.mode === "dark" ? theme.palette.common.white : undefined,
+                  }}
+                />
               ) : (
                 "Sign In"
               )}

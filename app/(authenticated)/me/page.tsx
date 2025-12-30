@@ -3,7 +3,7 @@ import ProfilePageClient from "./profile-client";
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();
-  
+
   if (!user) {
     return (
       <div>
@@ -13,5 +13,5 @@ export default async function ProfilePage() {
     );
   }
 
-  return <ProfilePageClient user={user} />;
+  return <ProfilePageClient />;
 }
