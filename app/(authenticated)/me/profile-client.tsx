@@ -97,6 +97,10 @@ export default function ProfilePageClient() {
   }
 
   if (error) {
+    if (error.response?.status === 401) {
+      handleLogout();
+    }
+
     return (
       <Container maxWidth="md" sx={{ py: 8 }}>
         <Alert
