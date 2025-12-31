@@ -19,6 +19,7 @@ import {
   Stack,
   IconButton,
   Tooltip,
+  Button,
 } from "@mui/material";
 import { Search, FilterList, CheckCircle, Cancel } from "@mui/icons-material";
 import { UserData } from "@/app/interfaces/user.interface";
@@ -212,6 +213,7 @@ export default function UsersPage() {
                 <TableCell>Status</TableCell>
                 <TableCell>Created Date</TableCell>
                 <TableCell>Updated Date</TableCell>
+                <TableCell>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -240,6 +242,14 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{formatDate(user.createdAt)}</TableCell>
                     <TableCell>{formatDate(user.updatedAt)}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={2}>
+                        <Button variant="contained">Edit</Button>
+                        <Button variant="contained" color="error">
+                          Remove
+                        </Button>
+                      </Stack>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
