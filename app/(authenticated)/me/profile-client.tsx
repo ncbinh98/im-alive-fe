@@ -29,16 +29,8 @@ import {
   Security as SecurityIcon,
 } from "@mui/icons-material";
 import useAxios from "axios-hooks";
-
-interface UserData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { UserData } from "@/app/interfaces/user.interface";
 
 export default function ProfilePageClient() {
   const router = useRouter();
@@ -60,6 +52,11 @@ export default function ProfilePageClient() {
   const handleEditProfile = () => {
     // Navigate to edit profile page
     router.push("/profile/edit");
+  };
+
+  const handleBackDashboard = () => {
+    // Navigate to edit profile page
+    router.push("/dashboard");
   };
 
   const formatDate = (dateString: string) => {
@@ -175,6 +172,14 @@ export default function ProfilePageClient() {
             </Stack>
 
             <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                onClick={handleBackDashboard}
+                sx={{ borderRadius: 3 }}
+              >
+                Back To Dashboard
+              </Button>
               <Button
                 variant="outlined"
                 startIcon={<EditIcon />}

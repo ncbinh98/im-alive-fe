@@ -91,8 +91,8 @@ export default function DashboardLayout({
       <Divider />
       <List>
         {menuItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-
+          // const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive= pathname === item.href
           return (
             <ListItem key={item.text} disablePadding>
               {/* Solution 1A: Using Next.js Link (Recommended) */}
