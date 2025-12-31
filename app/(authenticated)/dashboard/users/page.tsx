@@ -24,6 +24,7 @@ import {
 import { Search, FilterList, CheckCircle, Cancel } from "@mui/icons-material";
 import { UserData } from "@/app/interfaces/user.interface";
 import useAxios from "axios-hooks";
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 interface User {
   id: string;
@@ -115,6 +116,9 @@ export default function UsersPage() {
     setSearchTerm(event.target.value);
     setPage(0);
   };
+  const handleRefreshBtn = () => {
+    refetch();
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
@@ -139,7 +143,7 @@ export default function UsersPage() {
   return (
     <Box sx={{ width: "100%", p: 3 }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
-        Users Management
+        Users Management  <Button onClick={handleRefreshBtn} variant="text"><RefreshIcon  /></Button>
       </Typography>
 
       {/* Filter Section */}
