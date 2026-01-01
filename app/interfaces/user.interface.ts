@@ -7,3 +7,10 @@ export interface UserData {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ListUsers {
+  items: UserData[];
+  page: number;
+  limit: number;
+  total: number;
+}

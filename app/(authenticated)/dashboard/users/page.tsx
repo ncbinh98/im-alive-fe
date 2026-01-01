@@ -1,107 +1,160 @@
 "use client";
-import { useState, useMemo, ChangeEvent } from "react";
+import { ListUsers, UserData } from "@/app/interfaces/user.interface";
+import { Cancel, CheckCircle, FilterList, Search } from "@mui/icons-material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import {
+  Alert,
   Box,
+  Button,
+  Chip,
+  CircularProgress,
+  InputAdornment,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
   TablePagination,
+  TableRow,
   TextField,
-  InputAdornment,
-  Chip,
   Typography,
-  CircularProgress,
-  Alert,
-  Stack,
-  IconButton,
-  Tooltip,
-  Button,
 } from "@mui/material";
-import { Search, FilterList, CheckCircle, Cancel } from "@mui/icons-material";
-import { UserData } from "@/app/interfaces/user.interface";
 import useAxios from "axios-hooks";
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { ChangeEvent, useMemo, useState } from "react";
+import { useDebounce } from "use-debounce";
 
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+// Separate Table Component
+function UsersTable({
+  users,
+  loading,
+  total,
+  page,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
+}: {
+  users: UserData[];
+  loading: boolean;
+  total: number;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (event: unknown, newPage: number) => void;
+  onRowsPerPageChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+  return (
+    <Paper sx={{ width: "100%", overflow: "hidden" }}>
+      <TableContainer>
+        <Table stickyHeader aria-label="users table">
+          <TableHead
+            sx={{
+              "& .MuiTableCell-head": {
+                color: "white",
+                backgroundColor: "#2e2d2dff",
+                fontWeight: "bold",
+                fontSize: "0.95rem",
+              },
+            }}
+          >
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Created Date</TableCell>
+              <TableCell>Updated Date</TableCell>
+              <TableCell>Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              // Show loading rows
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <CircularProgress />
+                </TableCell>
+              </TableRow>
+            ) : users.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">No users found</Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              users.map((user) => (
+                <TableRow key={user.id} hover>
+                  <TableCell>
+                    <Typography fontWeight="medium">
+                      {user.firstName} {user.lastName}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={user.isActive ? "Active" : "Inactive"}
+                      size="small"
+                      color={user.isActive ? "success" : "error"}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>{formatDate(user.createdAt)}</TableCell>
+                  <TableCell>{formatDate(user.updatedAt)}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={2}>
+                      <Button variant="contained">Edit</Button>
+                      <Button variant="contained" color="error">
+                        Remove
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Pagination */}
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25]}
+        component="div"
+        count={total}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={onPageChange}
+        onRowsPerPageChange={onRowsPerPageChange}
+      />
+    </Paper>
+  );
 }
 
 export default function UsersPage() {
-  const [{ data: usersData, loading, error }, refetch] = useAxios<UserData>({
-    method: "GET",
-    url: "/users",
-  });
-
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
 
-  // Transform the data to handle both array and object responses
-  const users: User[] = useMemo(() => {
-    if (!usersData) return [];
+  // Debounce search term (500ms delay)
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
-    // If usersData is already an array, return it
-    if (Array.isArray(usersData)) {
-      return usersData;
-    }
+  const [{ data: usersData, loading, error }, refetch] = useAxios<ListUsers>({
+    method: "GET",
+    url: "/users",
+    params: {
+      page: page + 1,
+      limit: rowsPerPage,
+      email: debouncedSearchTerm,
+      isActive: filterActive,
+    },
+  });
 
-    // If usersData has a users property that's an array, return that
-    if (
-      usersData &&
-      typeof usersData === "object" &&
-      "users" in usersData &&
-      Array.isArray(usersData.users)
-    ) {
-      return usersData.users;
-    }
-
-    // If usersData has a data property that's an array, return that
-    if (
-      usersData &&
-      typeof usersData === "object" &&
-      "data" in usersData &&
-      Array.isArray(usersData.data)
-    ) {
-      return usersData.data;
-    }
-
-    return [];
+  // Transform the data
+  const users: UserData[] = useMemo(() => {
+    return usersData?.items || [];
   }, [usersData]);
-
-  // Filter users based on search term and active status
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      // Search filter
-      const matchesSearch =
-        searchTerm === "" ||
-        user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // Active status filter
-      const matchesActive = filterActive === null || user.isActive === filterActive;
-
-      return matchesSearch && matchesActive;
-    });
-  }, [users, searchTerm, filterActive]);
-
-  // Paginated users
-  const paginatedUsers = useMemo(() => {
-    const startIndex = page * rowsPerPage;
-    return filteredUsers.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredUsers, page, rowsPerPage]);
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -114,17 +167,15 @@ export default function UsersPage() {
 
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
-    setPage(0);
+    setPage(0); // Reset to first page when searching
   };
+
   const handleRefreshBtn = () => {
     refetch();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  if (loading) {
+  // Show initial loading only on first load
+  if (loading && !usersData) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
@@ -143,10 +194,13 @@ export default function UsersPage() {
   return (
     <Box sx={{ width: "100%", p: 3 }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
-        Users Management  <Button onClick={handleRefreshBtn} variant="text"><RefreshIcon  /></Button>
+        Users Management{" "}
+        <Button onClick={handleRefreshBtn} variant="text">
+          <RefreshIcon />
+        </Button>
       </Typography>
 
-      {/* Filter Section */}
+      {/* Filter Section - This stays static during search */}
       <Paper sx={{ p: 2, mb: 3, display: "flex", flexDirection: "column", gap: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <FilterList color="primary" />
@@ -155,7 +209,7 @@ export default function UsersPage() {
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
           <TextField
-            placeholder="Search by name or email..."
+            placeholder="Search by email..."
             value={searchTerm}
             onChange={handleSearchChange}
             size="small"
@@ -197,81 +251,16 @@ export default function UsersPage() {
         </Stack>
       </Paper>
 
-      {/* Users Table */}
-      <Paper sx={{ width: "100%", overflow: "hidden" }}>
-        <TableContainer>
-          <Table stickyHeader aria-label="users table">
-            <TableHead
-              sx={{
-                "& .MuiTableCell-head": {
-                  color: "white",
-                  backgroundColor: "#2e2d2dff",
-                  fontWeight: "bold",
-                  fontSize: "0.95rem",
-                },
-              }}
-            >
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Created Date</TableCell>
-                <TableCell>Updated Date</TableCell>
-                <TableCell>Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {paginatedUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">No users found</Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedUsers.map((user) => (
-                  <TableRow key={user.id} hover>
-                    <TableCell>
-                      <Typography fontWeight="medium">
-                        {user.firstName} {user.lastName}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.isActive ? "Active" : "Inactive"}
-                        size="small"
-                        color={user.isActive ? "success" : "error"}
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell>{formatDate(user.createdAt)}</TableCell>
-                    <TableCell>{formatDate(user.updatedAt)}</TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={2}>
-                        <Button variant="contained">Edit</Button>
-                        <Button variant="contained" color="error">
-                          Remove
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        {/* Pagination */}
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={filteredUsers.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </Paper>
+      {/* Only the table area refreshes */}
+      <UsersTable
+        users={users}
+        loading={loading}
+        total={usersData?.total || 0}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
     </Box>
   );
 }
