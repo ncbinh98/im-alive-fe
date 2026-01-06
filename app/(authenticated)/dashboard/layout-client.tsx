@@ -237,7 +237,7 @@ function DynamicBreadcrumbs() {
     <Breadcrumbs separator={<ChevronRightIcon fontSize="small" />} aria-label="breadcrumb">
       <MuiLink
         component={Link}
-        href="/dashboard"
+        href="/"
         color="inherit"
         underline="hover"
         sx={{ display: "flex", alignItems: "center" }}
