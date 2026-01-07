@@ -99,7 +99,7 @@ export default function DashboardLayout({
               <Link href={item.href} passHref style={{ textDecoration: "none", color: "inherit" }}>
                 <ListItemButton
                   selected={isActive}
-                  onClick={() => handleNavigation(item.href)}
+                  // onClick={() => handleNavigation(item.href)}
                   sx={{
                     "&.Mui-selected": {
                       backgroundColor: "rgba(144, 202, 249, 0.16)",
