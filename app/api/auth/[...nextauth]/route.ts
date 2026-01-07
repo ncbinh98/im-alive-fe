@@ -102,18 +102,16 @@ export const authOptions: AuthOptions = {
       // Check if token is expired (with 30-second buffer)
       const now = Date.now();
       const expiresAt: any = token.accessTokenExpires || 0;
-      console.log("@@@expiresAt", expiresAt);
-      console.log("@@@now", now);
 
-      if (now < expiresAt - 60000 ) {
+
+      if (now < expiresAt  - (1* 60000) ) {
         // Token still valid
         console.log("still valid");
         return token;
       }
 
       // Token expired or about to expire, refresh it
-      const newToken = await refreshAccessToken(token);
-      console.log("@@@newToken", newToken);
+      const newToken = await refreshAccessToken(token, token.id as string);
       return newToken;
     },
 
@@ -151,7 +149,7 @@ export const authOptions: AuthOptions = {
 };
 
 // Refresh token function
-async function refreshAccessToken(token: any) {
+async function refreshAccessToken(token: any, userId: string) {
   try {
     if (!token.refreshToken) {
       throw new Error("No refresh token available");
@@ -165,6 +163,7 @@ async function refreshAccessToken(token: any) {
       },
       body: JSON.stringify({
         refreshToken: token.refreshToken,
+        userId
       }),
     });
 
