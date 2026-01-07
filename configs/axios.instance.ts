@@ -17,8 +17,7 @@ axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig
   // Only run on client side
   if (typeof window !== "undefined") {
     try {
-      console.log("@@@RUNING API");
-      const session = await getSession({broadcast: false});
+      const session = await getSession({ broadcast: false });
       if (session?.accessToken) {
         config.headers.Authorization = `Bearer ${session.accessToken}`;
       }
