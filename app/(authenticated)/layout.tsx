@@ -6,7 +6,6 @@ import "@/configs/axios.config";
 import AuthProvider from "../providers/auth-provider";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-const session = await getServerSession(authOptions);
 const roboto = Roboto({
   weight: ["300", "400", "500", "700"],
   subsets: ["latin"],
@@ -14,7 +13,9 @@ const roboto = Roboto({
   variable: "--font-roboto",
 });
 
-export default function AuthenticatedLayout(props: any) {
+export default async function AuthenticatedLayout(props: any) {
+  const session = await getServerSession(authOptions);
+
   const { children } = props;
   return (
     <html lang="en" className={roboto.variable}>
