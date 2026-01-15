@@ -1,6 +1,16 @@
 "use client";
+
 import { ListUsers, UserData } from "@/app/interfaces/user.interface";
-import { Cancel, CheckCircle, FilterList, Search } from "@mui/icons-material";
+import {
+  Cancel,
+  CheckCircle,
+  FilterList,
+  Search,
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  MoreVert,
+} from "@mui/icons-material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   Alert,
@@ -20,12 +30,206 @@ import {
   TableRow,
   TextField,
   Typography,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  useTheme,
+  Avatar,
+  Card,
+  Menu,
 } from "@mui/material";
 import useAxios from "axios-hooks";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useMemo, useState, useEffect } from "react";
 import { useDebounce } from "use-debounce";
 
-// Separate Table Component
+// --- Types ---
+type UserFormInput = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password?: string;
+  // isActive?: boolean; // If API supports updating status directly
+};
+
+// --- Utils ---
+function getInitials(firstName: string = "", lastName: string = "") {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
+// --- Components ---
+
+// Confirmation Dialog
+function ConfirmDialog({
+  open,
+  title,
+  content,
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  open: boolean;
+  title: string;
+  content: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  return (
+    <Dialog
+      open={open}
+      onClose={loading ? undefined : onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          backdropFilter: "blur(10px)",
+          backgroundColor: "rgba(30, 41, 59, 0.95)",
+        },
+      }}
+    >
+      <DialogTitle fontWeight={700}>{title}</DialogTitle>
+      <DialogContent>
+        <Typography>{content}</Typography>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={onClose} color="inherit" disabled={loading}>
+          Cancel
+        </Button>
+        <Button onClick={onConfirm} variant="contained" color="error" disabled={loading}>
+          {loading ? "Processing..." : "Confirm"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// User Form Dialog (Create / Edit)
+function UserDialog({
+  open,
+  onClose,
+  initialData,
+  onSubmit,
+  loading,
+}: {
+  open: boolean;
+  onClose: () => void;
+  initialData?: UserData | null;
+  onSubmit: (data: UserFormInput) => void;
+  loading: boolean;
+}) {
+  const [formData, setFormData] = useState<UserFormInput>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+  });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        firstName: initialData.firstName,
+        lastName: initialData.lastName,
+        email: initialData.email,
+        password: "", // Password usually not returned or editable directly this way, keep empty
+      });
+    } else {
+      setFormData({ firstName: "", lastName: "", email: "", password: "" });
+    }
+  }, [initialData, open]);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          backdropFilter: "blur(10px)",
+          backgroundColor: "rgba(30, 41, 59, 0.9)", // Darker glass
+        },
+      }}
+    >
+      <DialogTitle sx={{ fontWeight: 700 }}>
+        {initialData ? "Edit User" : "Create New User"}
+      </DialogTitle>
+      <form onSubmit={handleSubmit}>
+        <DialogContent>
+          <Stack spacing={2} pt={1}>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                name="firstName"
+                label="First Name"
+                fullWidth
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+              />
+              <TextField
+                name="lastName"
+                label="Last Name"
+                fullWidth
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+              />
+            </Stack>
+            <TextField
+              name="email"
+              label="Email Address"
+              type="email"
+              fullWidth
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+            {!initialData && (
+              <TextField
+                name="password"
+                label="Password"
+                type="password"
+                fullWidth
+                value={formData.password}
+                onChange={handleChange}
+                required
+                helperText="Minimum 6 characters"
+              />
+            )}
+            {/* If Edit allows password change, could be added conditionally */}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={onClose} color="inherit">
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" disabled={loading} sx={{ px: 4 }}>
+            {loading ? "Saving..." : initialData ? "Save Changes" : "Create User"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+}
+
+// User Table Component
 function UsersTable({
   users,
   loading,
@@ -34,6 +238,8 @@ function UsersTable({
   rowsPerPage,
   onPageChange,
   onRowsPerPageChange,
+  onEdit,
+  onStatusToggle,
 }: {
   users: UserData[];
   loading: boolean;
@@ -42,72 +248,135 @@ function UsersTable({
   rowsPerPage: number;
   onPageChange: (event: unknown, newPage: number) => void;
   onRowsPerPageChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onEdit: (user: UserData) => void;
+  onStatusToggle: (user: UserData) => void;
 }) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  const theme = useTheme();
+
   return (
-    <Paper sx={{ width: "100%", overflow: "hidden" }}>
+    <Card
+      sx={{
+        width: "100%",
+        overflow: "hidden",
+        boxShadow: theme.shadows[4],
+        bgcolor: theme.palette.background.paper,
+        borderRadius: 3,
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
       <TableContainer>
         <Table stickyHeader aria-label="users table">
-          <TableHead
-            sx={{
-              "& .MuiTableCell-head": {
-                color: "white",
-                backgroundColor: "#2e2d2dff",
-                fontWeight: "bold",
-                fontSize: "0.95rem",
-              },
-            }}
-          >
+          <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Created Date</TableCell>
-              <TableCell>Updated Date</TableCell>
-              <TableCell>Action</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>User</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Joined</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Updated</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "transparent" }}>
+                Actions
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {loading ? (
-              // Show loading rows
+            {loading && users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
                   <CircularProgress />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">No users found</Typography>
+                <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                  <Stack alignItems="center" spacing={1} color="text.secondary">
+                    <Search sx={{ fontSize: 40, opacity: 0.5 }} />
+                    <Typography>No users found matching your criteria.</Typography>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id} hover>
+                <TableRow
+                  key={user.id}
+                  hover
+                  sx={{
+                    "&:last-child td, &:last-child th": { border: 0 },
+                    transition: "background-color 0.2s",
+                  }}
+                >
                   <TableCell>
-                    <Typography fontWeight="medium">
-                      {user.firstName} {user.lastName}
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Avatar
+                        sx={{
+                          bgcolor: theme.palette.primary.main,
+                          color: theme.palette.primary.contrastText,
+                          width: 40,
+                          height: 40,
+                        }}
+                      >
+                        {getInitials(user.firstName, user.lastName)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {user.firstName} {user.lastName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ID: ...{user.id.slice(-4)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{user.email}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Chip
+                        label={user.isActive ? "Active" : "Inactive"}
+                        size="small"
+                        color={user.isActive ? "success" : "default"}
+                        variant={user.isActive ? "filled" : "outlined"}
+                        sx={{ fontWeight: 500, minWidth: 70 }}
+                      />
+                      <Tooltip title={user.isActive ? "Deactivate User" : "Activate User"}>
+                        <IconButton
+                          size="small"
+                          color={user.isActive ? "success" : "default"}
+                          onClick={() => onStatusToggle(user)}
+                        >
+                          {user.isActive ? (
+                            <CheckCircle fontSize="small" />
+                          ) : (
+                            <Cancel fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(user.createdAt).toLocaleDateString()}
                     </Typography>
                   </TableCell>
-                  <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={user.isActive ? "Active" : "Inactive"}
-                      size="small"
-                      color={user.isActive ? "success" : "error"}
-                      variant="outlined"
-                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(user.updatedAt).toLocaleDateString()}
+                    </Typography>
                   </TableCell>
-                  <TableCell>{formatDate(user.createdAt)}</TableCell>
-                  <TableCell>{formatDate(user.updatedAt)}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={2}>
-                      <Button variant="contained">Edit</Button>
-                      <Button variant="contained" color="error">
-                        Remove
-                      </Button>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => onEdit(user)} color="primary">
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {/*
+                       <Tooltip title="Delete">
+                          <IconButton size="small" onClick={() => onDelete(user)} color="error">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                       </Tooltip>
+                       */}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -117,7 +386,6 @@ function UsersTable({
         </Table>
       </TableContainer>
 
-      {/* Pagination */}
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
@@ -126,20 +394,36 @@ function UsersTable({
         page={page}
         onPageChange={onPageChange}
         onRowsPerPageChange={onRowsPerPageChange}
+        sx={{
+          borderTop: `1px solid ${theme.palette.divider}`,
+        }}
       />
-    </Paper>
+    </Card>
   );
 }
 
+// Main Page Component
 export default function UsersPage() {
+  const theme = useTheme();
+
+  // -- State --
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
 
-  // Debounce search term (500ms delay)
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+
+  // Status Confirmation State
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [statusUser, setStatusUser] = useState<UserData | null>(null);
+
+  // -- API Hooks --
+
+  // List Users
   const [{ data: usersData, loading, error }, refetch] = useAxios<ListUsers>({
     method: "GET",
     url: "/users",
@@ -151,115 +435,243 @@ export default function UsersPage() {
     },
   });
 
-  // Transform the data
-  const users: UserData[] = useMemo(() => {
-    return usersData?.items || [];
-  }, [usersData]);
+  // Create User
+  const [{ loading: creating }, createUser] = useAxios(
+    {
+      url: "/users",
+      method: "POST",
+    },
+    { manual: true }
+  );
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
+  // Update User
+  const [{ loading: updating }, updateUser] = useAxios(
+    {
+      method: "PATCH",
+    },
+    { manual: true }
+  );
+
+  // -- Handlers --
+
+  const handleCreate = () => {
+    setEditingUser(null);
+    setDialogOpen(true);
   };
 
-  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+  const handleEdit = (user: UserData) => {
+    setEditingUser(user);
+    setDialogOpen(true);
   };
 
-  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-    setPage(0); // Reset to first page when searching
+  const handleStatusToggle = (user: UserData) => {
+    // Show Confirmation for BOTH Activate and Deactivate
+    setStatusUser(user);
+    setConfirmOpen(true);
   };
 
-  const handleRefreshBtn = () => {
-    refetch();
+  const handleConfirmStatusChange = () => {
+    if (statusUser) {
+      // Toggle the status
+      handleStatusChange(statusUser, !statusUser.isActive);
+    }
   };
 
-  // Show initial loading only on first load
-  if (loading && !usersData) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  const handleStatusChange = async (user: UserData, newStatus: boolean) => {
+    try {
+      await updateUser({
+        url: `/users/${user.id}`,
+        data: {
+          isActive: newStatus,
+        },
+      });
 
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ mt: 2 }}>
-        Error loading users: {error.message}
-      </Alert>
-    );
-  }
+      // Close dialogues and refresh
+      setConfirmOpen(false);
+      setStatusUser(null);
+      refetch();
+    } catch (err) {
+      console.error("Failed to update status", err);
+    }
+  };
+
+  const handleFormSubmit = async (data: UserFormInput) => {
+    try {
+      if (editingUser) {
+        // Update
+        await updateUser({
+          url: `/users/${editingUser.id}`,
+          data: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            // Typically password is not updated here unless specific endpoint?
+            // Postman had PATCH with name/email.
+          },
+        });
+      } else {
+        // Create
+        await createUser({
+          data,
+        });
+      }
+      setDialogOpen(false);
+      refetch(); // Refresh list
+    } catch (err) {
+      console.error("Failed to save user", err);
+      // Could show snackbar error here
+    }
+  };
 
   return (
-    <Box sx={{ width: "100%", p: 3 }}>
-      <Typography variant="h4" gutterBottom fontWeight="bold">
-        Users Management{" "}
-        <Button onClick={handleRefreshBtn} variant="text">
-          <RefreshIcon />
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1600, mx: "auto" }}>
+      {/* Header */}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "start", sm: "center" }}
+        mb={4}
+        spacing={2}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight={700}>
+            Users
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage system access and profiles
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleCreate}
+          size="large"
+          sx={{
+            borderRadius: "50px",
+            px: 3,
+            boxShadow: `0 8px 20px -4px ${theme.palette.primary.main}44`,
+          }}
+        >
+          Add User
         </Button>
-      </Typography>
+      </Stack>
 
-      {/* Filter Section - This stays static during search */}
-      <Paper sx={{ p: 2, mb: 3, display: "flex", flexDirection: "column", gap: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <FilterList color="primary" />
-          <Typography variant="h6">Filters</Typography>
-        </Stack>
+      {/* Toolbar / Filters */}
+      <Paper
+        sx={{
+          p: 2,
+          mb: 3,
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: "center",
+          gap: 2,
+          borderRadius: 3,
+          background: "rgba(255, 255, 255, 0.02)", // Very subtle background
+          backdropFilter: "blur(10px)",
+          border: `1px solid ${theme.palette.divider}`,
+        }}
+        elevation={0}
+      >
+        <TextField
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setPage(0);
+          }}
+          size="small"
+          sx={{ flexGrow: 1, minWidth: { md: 300 } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search color="action" />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 2 },
+          }}
+        />
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
-          <TextField
-            placeholder="Search by email..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            size="small"
-            sx={{ flexGrow: 1 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
+        <Stack direction="row" spacing={1} overflow="auto" maxWidth="100%">
+          <Chip
+            label="All"
+            color="primary"
+            variant={filterActive === null ? "filled" : "outlined"}
+            onClick={() => setFilterActive(null)}
+            clickable
           />
-
-          <Stack direction="row" spacing={1}>
-            <Chip
-              label="All Users"
-              clickable
-              variant={filterActive === null ? "filled" : "outlined"}
-              onClick={() => setFilterActive(null)}
-              color="primary"
-            />
-            <Chip
-              label="Active"
-              clickable
-              variant={filterActive === true ? "filled" : "outlined"}
-              onClick={() => setFilterActive(true)}
-              icon={<CheckCircle />}
-              color="success"
-            />
-            <Chip
-              label="Inactive"
-              clickable
-              variant={filterActive === false ? "filled" : "outlined"}
-              onClick={() => setFilterActive(false)}
-              icon={<Cancel />}
-              color="error"
-            />
-          </Stack>
+          <Chip
+            label="Active"
+            color="success"
+            variant={filterActive === true ? "filled" : "outlined"}
+            onClick={() => setFilterActive(true)}
+            clickable
+            icon={<CheckCircle fontSize="small" />}
+          />
+          <Chip
+            label="Inactive"
+            color="default" // "error" might be too strong for filter
+            variant={filterActive === false ? "filled" : "outlined"}
+            onClick={() => setFilterActive(false)}
+            clickable
+            icon={<Cancel fontSize="small" />}
+          />
         </Stack>
+
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={() => refetch()}
+          size="small"
+          sx={{ minWidth: "auto", ml: "auto" }}
+        >
+          Refresh
+        </Button>
       </Paper>
 
-      {/* Only the table area refreshes */}
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => refetch()}>
+          Failed to load users. {error.message}
+        </Alert>
+      )}
+
+      {/* Users Table */}
       <UsersTable
-        users={users}
+        users={usersData?.items || []}
         loading={loading}
         total={usersData?.total || 0}
         page={page}
         rowsPerPage={rowsPerPage}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
+        onPageChange={(e, p) => setPage(p)}
+        onRowsPerPageChange={(e) => {
+          setRowsPerPage(parseInt(e.target.value, 10));
+          setPage(0);
+        }}
+        onEdit={handleEdit}
+        onStatusToggle={handleStatusToggle}
+      />
+
+      {/* User Dialog */}
+      <UserDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        initialData={editingUser}
+        onSubmit={handleFormSubmit}
+        loading={creating || updating}
+      />
+
+      {/* Status Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={statusUser?.isActive ? "Deactivate User?" : "Activate User?"}
+        content={
+          statusUser?.isActive
+            ? `Are you sure you want to deactivate ${statusUser?.firstName} ${statusUser?.lastName}? They will lose access to the system.`
+            : `Are you sure you want to activate ${statusUser?.firstName} ${statusUser?.lastName}? They will regain access to the system.`
+        }
+        onConfirm={handleConfirmStatusChange}
+        onClose={() => setConfirmOpen(false)}
+        loading={updating}
       />
     </Box>
   );
