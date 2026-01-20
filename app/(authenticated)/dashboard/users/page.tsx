@@ -1,6 +1,6 @@
 "use client";
 
-import { ListUsers, UserData } from "@/app/interfaces/user.interface";
+import { ListUsers, UserData, EmergencyContact } from "@/app/interfaces/user.interface";
 import {
   Cancel,
   CheckCircle,
@@ -55,7 +55,8 @@ type UserFormInput = {
   lastName: string;
   email: string;
   password?: string;
-  // isActive?: boolean; // If API supports updating status directly
+  isActive?: boolean;
+  emergencyContacts: EmergencyContact[];
 };
 
 // --- Utils ---
@@ -130,6 +131,8 @@ function UserDialog({
     lastName: "",
     email: "",
     password: "",
+    isActive: true,
+    emergencyContacts: [],
   });
 
   useEffect(() => {
@@ -138,15 +141,47 @@ function UserDialog({
         firstName: initialData.firstName,
         lastName: initialData.lastName,
         email: initialData.email,
-        password: "", // Password usually not returned or editable directly this way, keep empty
+        password: "",
+        isActive: initialData.isActive,
+        emergencyContacts: initialData.emergencyContacts || [],
       });
     } else {
-      setFormData({ firstName: "", lastName: "", email: "", password: "" });
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        isActive: true,
+        emergencyContacts: [],
+      });
     }
   }, [initialData, open]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleContactChange = (index: number, field: keyof EmergencyContact, value: string) => {
+    const updatedContacts = [...formData.emergencyContacts];
+    updatedContacts[index] = { ...updatedContacts[index], [field]: value };
+    setFormData((prev) => ({ ...prev, emergencyContacts: updatedContacts }));
+  };
+
+  const addContact = () => {
+    setFormData((prev) => ({
+      ...prev,
+      emergencyContacts: [
+        ...prev.emergencyContacts,
+        { name: "", telegramId: "", email: "", message: "" },
+      ],
+    }));
+  };
+
+  const removeContact = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -159,12 +194,12 @@ function UserDialog({
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="sm"
+      maxWidth="md"
       PaperProps={{
         sx: {
           borderRadius: 3,
           backdropFilter: "blur(10px)",
-          backgroundColor: "rgba(30, 41, 59, 0.9)", // Darker glass
+          backgroundColor: "rgba(30, 41, 59, 0.9)",
         },
       }}
     >
@@ -173,7 +208,7 @@ function UserDialog({
       </DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
-          <Stack spacing={2} pt={1}>
+          <Stack spacing={3} pt={1}>
             <Stack direction="row" spacing={2}>
               <TextField
                 name="firstName"
@@ -213,7 +248,77 @@ function UserDialog({
                 helperText="Minimum 6 characters"
               />
             )}
-            {/* If Edit allows password change, could be added conditionally */}
+
+            <Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Emergency Contacts
+                </Typography>
+                <Button startIcon={<AddIcon />} size="small" onClick={addContact}>
+                  Add Contact
+                </Button>
+              </Stack>
+              <Stack spacing={2}>
+                {formData.emergencyContacts.map((contact, index) => (
+                  <Paper
+                    key={index}
+                    variant="outlined"
+                    sx={{ p: 2, bgcolor: "rgba(255, 255, 255, 0.03)", position: "relative" }}
+                  >
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => removeContact(index)}
+                      sx={{ position: "absolute", top: 8, right: 8 }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                    <Stack spacing={2} pt={1}>
+                      <Stack direction="row" spacing={2}>
+                        <TextField
+                          label="Name"
+                          size="small"
+                          fullWidth
+                          value={contact.name}
+                          onChange={(e) => handleContactChange(index, "name", e.target.value)}
+                          required
+                        />
+                        <TextField
+                          label="Telegram ID"
+                          size="small"
+                          fullWidth
+                          value={contact.telegramId}
+                          onChange={(e) => handleContactChange(index, "telegramId", e.target.value)}
+                        />
+                      </Stack>
+                      <Stack direction="row" spacing={2}>
+                        <TextField
+                          label="Email"
+                          size="small"
+                          fullWidth
+                          value={contact.email}
+                          onChange={(e) => handleContactChange(index, "email", e.target.value)}
+                        />
+                        <TextField
+                          label="Message"
+                          size="small"
+                          fullWidth
+                          multiline
+                          rows={2}
+                          value={contact.message}
+                          onChange={(e) => handleContactChange(index, "message", e.target.value)}
+                        />
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ))}
+                {formData.emergencyContacts.length === 0 && (
+                  <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
+                    No emergency contacts added.
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
@@ -270,6 +375,7 @@ function UsersTable({
             <TableRow>
               <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>User</TableCell>
               <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Contacts</TableCell>
               <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Status</TableCell>
               <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Joined</TableCell>
               <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Updated</TableCell>
@@ -328,6 +434,33 @@ function UsersTable({
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">{user.email}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Stack spacing={0.5}>
+                      {user.emergencyContacts?.slice(0, 2).map((contact, i) => (
+                        <Tooltip
+                          key={i}
+                          title={`${contact.telegramId ? contact.telegramId : "-"} ~ ${contact.email ? contact.email : "-"}: ${contact.message}`}
+                        >
+                          <Chip
+                            label={contact.name}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontSize: "0.7rem", height: 20 }}
+                          />
+                        </Tooltip>
+                      ))}
+                      {user.emergencyContacts?.length > 2 && (
+                        <Typography variant="caption" color="text.secondary">
+                          +{user.emergencyContacts.length - 2} more
+                        </Typography>
+                      )}
+                      {(!user.emergencyContacts || user.emergencyContacts.length === 0) && (
+                        <Typography variant="caption" color="text.disabled">
+                          None
+                        </Typography>
+                      )}
+                    </Stack>
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
@@ -441,7 +574,7 @@ export default function UsersPage() {
       url: "/users",
       method: "POST",
     },
-    { manual: true }
+    { manual: true },
   );
 
   // Update User
@@ -449,7 +582,7 @@ export default function UsersPage() {
     {
       method: "PATCH",
     },
-    { manual: true }
+    { manual: true },
   );
 
   // -- Handlers --
@@ -505,8 +638,8 @@ export default function UsersPage() {
             firstName: data.firstName,
             lastName: data.lastName,
             email: data.email,
-            // Typically password is not updated here unless specific endpoint?
-            // Postman had PATCH with name/email.
+            isActive: data.isActive,
+            emergencyContacts: data.emergencyContacts,
           },
         });
       } else {
