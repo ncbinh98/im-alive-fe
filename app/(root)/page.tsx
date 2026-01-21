@@ -16,8 +16,10 @@ import { useState, useEffect } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import FavoriteIcon from "@mui/icons-material/Favorite";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   const theme = useTheme();
   const [timeUnits, setTimeUnits] = useState({
     years: 0,
@@ -53,7 +55,8 @@ export default function Home() {
   }, []);
 
   const handleCheckIn = () => {
-    setCheckInCount((prev) => prev + 1);
+    // setCheckInCount((prev) => prev + 1);
+    router.push("/me");
   };
 
   const formatLifeNumber = (value: number) => {
@@ -160,8 +163,8 @@ export default function Home() {
                           ? "#8b5cf6"
                           : "#2196f3"
                         : theme.palette.mode === "dark"
-                        ? "rgba(255, 255, 255, 0.1)"
-                        : "#e2e8f0",
+                          ? "rgba(255, 255, 255, 0.1)"
+                          : "#e2e8f0",
                     borderRadius: 2,
                     transition: "all 0.3s ease",
                     "&:hover": {
@@ -171,8 +174,8 @@ export default function Home() {
                             ? "rgba(139, 92, 246, 0.2)"
                             : "rgba(33, 150, 243, 0.1)"
                           : theme.palette.mode === "dark"
-                          ? "rgba(255, 255, 255, 0.05)"
-                          : "rgba(0, 0, 0, 0.02)",
+                            ? "rgba(255, 255, 255, 0.05)"
+                            : "rgba(0, 0, 0, 0.02)",
                       transform: "translateY(-4px)",
                       boxShadow:
                         theme.palette.mode === "dark"
@@ -192,8 +195,8 @@ export default function Home() {
                             ? "linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)"
                             : "linear-gradient(90deg, #3f51b5 0%, #2196f3 100%)"
                           : theme.palette.mode === "dark"
-                          ? "linear-gradient(90deg, #94a3b8 0%, #cbd5e1 100%)"
-                          : "linear-gradient(90deg, #64748b 0%, #475569 100%)",
+                            ? "linear-gradient(90deg, #94a3b8 0%, #cbd5e1 100%)"
+                            : "linear-gradient(90deg, #64748b 0%, #475569 100%)",
                       backgroundClip: "text",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
