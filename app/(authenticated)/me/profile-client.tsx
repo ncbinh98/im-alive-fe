@@ -128,7 +128,7 @@ export default function ProfilePageClient() {
           background: (theme) =>
             `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.05)} 0%, ${alpha(
               theme.palette.background.paper,
-              1
+              1,
             )} 100%)`,
           border: (theme) => `1px solid ${theme.palette.divider}`,
         }}
@@ -184,14 +184,14 @@ export default function ProfilePageClient() {
               >
                 Back To Dashboard
               </Button>
-              <Button
+              {/* <Button
                 variant="outlined"
                 startIcon={<EditIcon />}
                 onClick={handleEditProfile}
                 sx={{ borderRadius: 3 }}
               >
                 Edit Profile
-              </Button>
+              </Button> */}
               <Button
                 variant="contained"
                 color="error"
@@ -444,7 +444,7 @@ export default function ProfilePageClient() {
         {/* Quick Actions */}
         <Box sx={{ mt: 6, pt: 4, borderTop: 1, borderColor: "divider" }}>
           <Stack direction="row" spacing={2} justifyContent="center">
-            <Button
+            {/* <Button
               variant="outlined"
               color="primary"
               onClick={() => router.push("/security")}
@@ -459,7 +459,7 @@ export default function ProfilePageClient() {
               sx={{ borderRadius: 3 }}
             >
               Notification Preferences
-            </Button>
+            </Button> */}
             <Button
               variant="outlined"
               color="primary"

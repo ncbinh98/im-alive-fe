@@ -40,9 +40,9 @@ const drawerWidth = 240;
 const menuItems = [
   { text: "Dashboard", icon: <DashboardIcon />, href: "/dashboard" },
   { text: "Users", icon: <PeopleIcon />, href: "/dashboard/users" },
-  { text: "Products", icon: <InventoryIcon />, href: "/dashboard/products" },
-  { text: "Analytics", icon: <AnalyticsIcon />, href: "/dashboard/analytics" },
-  { text: "Settings", icon: <SettingsIcon />, href: "/dashboard/settings" },
+  // { text: "Products", icon: <InventoryIcon />, href: "/dashboard/products" },
+  // { text: "Analytics", icon: <AnalyticsIcon />, href: "/dashboard/analytics" },
+  // { text: "Settings", icon: <SettingsIcon />, href: "/dashboard/settings" },
 ];
 
 export default function DashboardLayout({
@@ -85,14 +85,14 @@ export default function DashboardLayout({
     <div>
       <Toolbar>
         <Typography variant="h6" noWrap component="div">
-          Admin Panel
+          I'm Still Alive!
         </Typography>
       </Toolbar>
       <Divider />
       <List>
         {menuItems.map((item) => {
           // const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          const isActive= pathname === item.href
+          const isActive = pathname === item.href;
           return (
             <ListItem key={item.text} disablePadding>
               {/* Solution 1A: Using Next.js Link (Recommended) */}
