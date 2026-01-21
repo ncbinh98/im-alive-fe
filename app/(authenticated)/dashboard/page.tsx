@@ -19,6 +19,8 @@ import {
   Stack,
   CircularProgress,
   IconButton,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   CheckCircleOutline,
@@ -27,6 +29,7 @@ import {
   LocalFireDepartment as FireIcon,
   EmojiEvents,
   Close as CloseIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
 import useAxios from "axios-hooks";
@@ -40,22 +43,22 @@ type CheckInHistory = {
 };
 
 // --- Constants ---
-const CHECK_IN_QUOTES: string[] = [
-  "I showed up today, and that is enough.",
-  "Progress doesn’t need to be loud to be real.",
-  "Today counts, even if nothing special happened.",
-  "Small steps are how long journeys continue.",
-  "Consistency beats motivation.",
-  "Another day lived is another day learned.",
-  "Even quiet days deserve recognition.",
-  "I’m building something by simply not giving up.",
-  "Showing up is a form of courage.",
-  "Growth happens even when it feels invisible.",
-  "Today didn’t break me — that’s a win.",
-  "One honest day at a time.",
-];
 
 function getRandomQuote() {
+  const CHECK_IN_QUOTES: string[] = [
+    "I showed up today, and that is enough.",
+    "Progress doesn’t need to be loud to be real.",
+    "Today counts, even if nothing special happened.",
+    "Small steps are how long journeys continue.",
+    "Consistency beats motivation.",
+    "Another day lived is another day learned.",
+    "Even quiet days deserve recognition.",
+    "I’m building something by simply not giving up.",
+    "Showing up is a form of courage.",
+    "Growth happens even when it feels invisible.",
+    "Today didn’t break me — that’s a win.",
+    "One honest day at a time.",
+  ];
   return CHECK_IN_QUOTES[Math.floor(Math.random() * CHECK_IN_QUOTES.length)];
 }
 
@@ -108,6 +111,126 @@ function StatCard({
   );
 }
 
+function CheckInSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [{ data, loading, error }] = useAxios(
+    {
+      url: "/check-in/status",
+      method: "GET",
+    },
+    { manual: !open },
+  );
+
+  const [{ loading: updating }, updateConfig] = useAxios(
+    {
+      url: "/check-in/config",
+      method: "PATCH",
+    },
+    { manual: true },
+  );
+
+  const [settings, setSettings] = useState({
+    alertAfterDays: 3,
+    alertsEnabled: true,
+    emergencyThresholdDays: 3,
+  });
+
+  useMemo(() => {
+    if (data) {
+      setSettings({
+        alertAfterDays: data.alertAfterDays,
+        alertsEnabled: data.alertsEnabled,
+        emergencyThresholdDays: data.emergencyThresholdDays,
+      });
+    }
+  }, [data]);
+
+  const handleSave = async () => {
+    try {
+      await updateConfig({
+        data: settings,
+      });
+      onClose();
+    } catch (err) {
+      console.error("Failed to update check-in config", err);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6" fontWeight={700}>
+            Check-in Settings
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 1 }}>
+        {loading ? (
+          <Box display="flex" justifyContent="center" py={3}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : error ? (
+          <Typography color="error" variant="body2">
+            Failed to load settings.
+          </Typography>
+        ) : (
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label="Alert After Days"
+              type="number"
+              fullWidth
+              value={settings.alertAfterDays}
+              onChange={(e) => setSettings({ ...settings, alertAfterDays: Number(e.target.value) })}
+              helperText="How many days of inactivity before an alert is triggered?"
+            />
+            <TextField
+              label="Emergency Threshold Days"
+              type="number"
+              fullWidth
+              value={settings.emergencyThresholdDays}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  emergencyThresholdDays: Number(e.target.value),
+                })
+              }
+              helperText="Days before emergency protocol starts after the initial alert."
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={settings.alertsEnabled}
+                  onChange={(e) => setSettings({ ...settings, alertsEnabled: e.target.checked })}
+                  color="primary"
+                />
+              }
+              label="Enable Alerts"
+              sx={{ justifyContent: "space-between", width: "100%", ml: 0 }}
+              labelPlacement="start"
+            />
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ p: 3 }}>
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={updating || loading}
+          sx={{ px: 4 }}
+        >
+          {updating ? "Saving..." : "Save Settings"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export default function Page() {
   const theme = useTheme();
   const [{ data: histories = [], loading, error }, refetch] = useAxios<CheckInHistory[]>({
@@ -120,7 +243,7 @@ export default function Page() {
       url: "/check-in",
       method: "POST",
     },
-    { manual: true }
+    { manual: true },
   );
 
   const [open, setOpen] = useState(false);
@@ -132,6 +255,8 @@ export default function Page() {
     setNotes("");
     setOpen(true);
   };
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleClose = () => {
     setOpen(false);
@@ -152,7 +277,7 @@ export default function Page() {
     }
 
     const sorted = [...histories].sort(
-      (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime()
+      (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
     );
 
     const total = histories.length;
@@ -208,6 +333,26 @@ export default function Page() {
           }}
         >
           Check In Now
+        </Button>
+        <Button
+          variant="outlined"
+          size="large"
+          startIcon={<SettingsIcon />}
+          onClick={() => setSettingsOpen(true)}
+          sx={{
+            py: 1.5,
+            px: 4,
+            borderRadius: "50px",
+            fontSize: "1.1rem",
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.primary,
+            "&:hover": {
+              borderColor: theme.palette.primary.main,
+              bgcolor: `${theme.palette.primary.main}11`,
+            },
+          }}
+        >
+          Check-in Setting
         </Button>
       </Stack>
 
@@ -410,6 +555,8 @@ export default function Page() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <CheckInSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Box>
   );
 }
