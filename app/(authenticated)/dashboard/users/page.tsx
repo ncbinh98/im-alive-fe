@@ -44,6 +44,7 @@ import {
   Avatar,
   Card,
   Menu,
+  useMediaQuery,
 } from "@mui/material";
 import useAxios from "axios-hooks";
 import { ChangeEvent, useMemo, useState, useEffect } from "react";
@@ -357,6 +358,7 @@ function UsersTable({
   onStatusToggle: (user: UserData) => void;
 }) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   return (
     <Card
@@ -369,48 +371,36 @@ function UsersTable({
         border: `1px solid ${theme.palette.divider}`,
       }}
     >
-      <TableContainer>
-        <Table stickyHeader aria-label="users table">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>User</TableCell>
-              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Email</TableCell>
-              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Contacts</TableCell>
-              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Joined</TableCell>
-              <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Updated</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "transparent" }}>
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                  <CircularProgress />
-                </TableCell>
-              </TableRow>
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-                  <Stack alignItems="center" spacing={1} color="text.secondary">
-                    <Search sx={{ fontSize: 40, opacity: 0.5 }} />
-                    <Typography>No users found matching your criteria.</Typography>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow
+      {isMobile ? (
+        <Box sx={{ p: 2 }}>
+          {loading && users.length === 0 ? (
+            <Box display="flex" justifyContent="center" py={8}>
+              <CircularProgress />
+            </Box>
+          ) : users.length === 0 ? (
+            <Stack alignItems="center" spacing={1} color="text.secondary" py={6}>
+              <Search sx={{ fontSize: 40, opacity: 0.5 }} />
+              <Typography>No users found matching your criteria.</Typography>
+            </Stack>
+          ) : (
+            <Stack spacing={2}>
+              {users.map((user) => (
+                <Paper
                   key={user.id}
-                  hover
+                  variant="outlined"
                   sx={{
-                    "&:last-child td, &:last-child th": { border: 0 },
-                    transition: "background-color 0.2s",
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: "rgba(255, 255, 255, 0.02)",
+                    border: `1px solid ${theme.palette.divider}`,
                   }}
                 >
-                  <TableCell>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    mb={2}
+                  >
                     <Stack direction="row" spacing={2} alignItems="center">
                       <Avatar
                         sx={{
@@ -423,101 +413,238 @@ function UsersTable({
                         {getInitials(user.firstName, user.lastName)}
                       </Avatar>
                       <Box>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="subtitle2" fontWeight={700}>
                           {user.firstName} {user.lastName}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          ID: ...{user.id.slice(-4)}
+                          {user.email}
                         </Typography>
                       </Box>
                     </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{user.email}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Stack spacing={0.5}>
-                      {user.emergencyContacts?.slice(0, 2).map((contact, i) => (
-                        <Tooltip
-                          key={i}
-                          title={`${contact.telegramId ? contact.telegramId : "-"} ~ ${contact.email ? contact.email : "-"}: ${contact.message}`}
-                        >
+                    <Stack direction="row" spacing={1}>
+                      <IconButton size="small" onClick={() => onEdit(user)} color="primary">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color={user.isActive ? "success" : "default"}
+                        onClick={() => onStatusToggle(user)}
+                      >
+                        {user.isActive ? (
+                          <CheckCircle fontSize="small" />
+                        ) : (
+                          <Cancel fontSize="small" />
+                        )}
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Chip
+                      label={user.isActive ? "Active" : "Inactive"}
+                      size="small"
+                      color={user.isActive ? "success" : "default"}
+                      variant={user.isActive ? "filled" : "outlined"}
+                      sx={{ fontWeight: 500, height: 24 }}
+                    />
+                  </Box>
+
+                  <Stack spacing={1}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Emergency Contacts
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} mt={0.5} flexWrap="wrap" gap={0.5}>
+                        {user.emergencyContacts?.slice(0, 3).map((contact, i) => (
                           <Chip
+                            key={i}
                             label={contact.name}
                             size="small"
                             variant="outlined"
-                            sx={{ fontSize: "0.7rem", height: 20 }}
+                            sx={{ fontSize: "0.65rem", height: 20 }}
                           />
-                        </Tooltip>
-                      ))}
-                      {user.emergencyContacts?.length > 2 && (
+                        ))}
+                        {user.emergencyContacts?.length > 3 && (
+                          <Typography variant="caption" color="text.secondary">
+                            +{user.emergencyContacts.length - 3} more
+                          </Typography>
+                        )}
+                        {(!user.emergencyContacts || user.emergencyContacts.length === 0) && (
+                          <Typography variant="caption" color="text.disabled">
+                            None
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    <Stack direction="row" justifyContent="space-between" mt={1}>
+                      <Box>
                         <Typography variant="caption" color="text.secondary">
-                          +{user.emergencyContacts.length - 2} more
+                          Joined
                         </Typography>
-                      )}
-                      {(!user.emergencyContacts || user.emergencyContacts.length === 0) && (
-                        <Typography variant="caption" color="text.disabled">
-                          None
+                        <Typography variant="body2">
+                          {new Date(user.createdAt).toLocaleDateString()}
                         </Typography>
-                      )}
+                      </Box>
+                      <Box textAlign="right">
+                        <Typography variant="caption" color="text.secondary">
+                          Updated
+                        </Typography>
+                        <Typography variant="body2">
+                          {new Date(user.updatedAt).toLocaleDateString()}
+                        </Typography>
+                      </Box>
                     </Stack>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </Box>
+      ) : (
+        <TableContainer>
+          <Table stickyHeader aria-label="users table">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Contacts</TableCell>
+                <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Joined</TableCell>
+                <TableCell sx={{ fontWeight: 700, bgcolor: "transparent" }}>Updated</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "transparent" }}>
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                    <CircularProgress />
                   </TableCell>
-                  <TableCell>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Chip
-                        label={user.isActive ? "Active" : "Inactive"}
-                        size="small"
-                        color={user.isActive ? "success" : "default"}
-                        variant={user.isActive ? "filled" : "outlined"}
-                        sx={{ fontWeight: 500, minWidth: 70 }}
-                      />
-                      <Tooltip title={user.isActive ? "Deactivate User" : "Activate User"}>
-                        <IconButton
-                          size="small"
-                          color={user.isActive ? "success" : "default"}
-                          onClick={() => onStatusToggle(user)}
-                        >
-                          {user.isActive ? (
-                            <CheckCircle fontSize="small" />
-                          ) : (
-                            <Cancel fontSize="small" />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(user.updatedAt).toLocaleDateString()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => onEdit(user)} color="primary">
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {/*
-                       <Tooltip title="Delete">
-                          <IconButton size="small" onClick={() => onDelete(user)} color="error">
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                       </Tooltip>
-                       */}
+                </TableRow>
+              ) : users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                    <Stack alignItems="center" spacing={1} color="text.secondary">
+                      <Search sx={{ fontSize: 40, opacity: 0.5 }} />
+                      <Typography>No users found matching your criteria.</Typography>
                     </Stack>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              ) : (
+                users.map((user) => (
+                  <TableRow
+                    key={user.id}
+                    hover
+                    sx={{
+                      "&:last-child td, &:last-child th": { border: 0 },
+                      transition: "background-color 0.2s",
+                    }}
+                  >
+                    <TableCell>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar
+                          sx={{
+                            bgcolor: theme.palette.primary.main,
+                            color: theme.palette.primary.contrastText,
+                            width: 40,
+                            height: 40,
+                          }}
+                        >
+                          {getInitials(user.firstName, user.lastName)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            {user.firstName} {user.lastName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            ID: ...{user.id.slice(-4)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{user.email}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Stack spacing={0.5}>
+                        {user.emergencyContacts?.slice(0, 2).map((contact, i) => (
+                          <Tooltip
+                            key={i}
+                            title={`${contact.telegramId ? contact.telegramId : "-"} ~ ${contact.email ? contact.email : "-"}: ${contact.message}`}
+                          >
+                            <Chip
+                              label={contact.name}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontSize: "0.7rem", height: 20 }}
+                            />
+                          </Tooltip>
+                        ))}
+                        {user.emergencyContacts?.length > 2 && (
+                          <Typography variant="caption" color="text.secondary">
+                            +{user.emergencyContacts.length - 2} more
+                          </Typography>
+                        )}
+                        {(!user.emergencyContacts || user.emergencyContacts.length === 0) && (
+                          <Typography variant="caption" color="text.disabled">
+                            None
+                          </Typography>
+                        )}
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Chip
+                          label={user.isActive ? "Active" : "Inactive"}
+                          size="small"
+                          color={user.isActive ? "success" : "default"}
+                          variant={user.isActive ? "filled" : "outlined"}
+                          sx={{ fontWeight: 500, minWidth: 70 }}
+                        />
+                        <Tooltip title={user.isActive ? "Deactivate User" : "Activate User"}>
+                          <IconButton
+                            size="small"
+                            color={user.isActive ? "success" : "default"}
+                            onClick={() => onStatusToggle(user)}
+                          >
+                            {user.isActive ? (
+                              <CheckCircle fontSize="small" />
+                            ) : (
+                              <Cancel fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(user.updatedAt).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Tooltip title="Edit">
+                          <IconButton size="small" onClick={() => onEdit(user)} color="primary">
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
