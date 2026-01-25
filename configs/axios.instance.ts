@@ -13,11 +13,24 @@ const axiosInstance = axios.create({
 });
 
 // Add NextAuth token interceptor
+let sessionPromise: Promise<any> | null = null;
+
 axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Only run on client side
   if (typeof window !== "undefined") {
     try {
-      const session = await getSession({ broadcast: false });
+      if (!sessionPromise) {
+        sessionPromise = getSession({ broadcast: false });
+        // Reset promise after a short delay or when resolved to allow future checks
+        // but avoid hammering in a single burst of requests
+        sessionPromise.finally(() => {
+          setTimeout(() => {
+            sessionPromise = null;
+          }, 1000); // Memoize for 1 second
+        });
+      }
+
+      const session = await sessionPromise;
       if (session?.accessToken) {
         config.headers.Authorization = `Bearer ${session.accessToken}`;
       }
@@ -37,7 +50,7 @@ axiosInstance.interceptors.response.use(
   (error) => {
     // Log error but don't handle refresh here
     return Promise.reject(error);
-  }
+  },
 );
 
 export default axiosInstance;
